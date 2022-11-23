@@ -16,6 +16,7 @@ router.post('/post', [
     .trim()
     .isLength({ min: 5 }),
 ],
+  isAuth,
   feedController.createPost
 )
 
