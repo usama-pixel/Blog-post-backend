@@ -5,9 +5,10 @@ const bodyParser = require('body-parser')
 const mongoose = require('mongoose')
 const multer = require('multer')
 const { graphqlHTTP } = require('express-graphql')
+
 const graphqlSchema = require('./graphql/schema')
 const graphqlResolver = require('./graphql/resolvers')
-
+const auth = require('./middleware/auth')
 const app = express()
 
 const fileStorage = multer.diskStorage({
@@ -48,19 +49,24 @@ app.use((req, res, next) => { // using this code to avoid CORS error
     'PUT, GET, POST, PATCH, DELETE, OPTIONS'
   )
   res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Auth-Token, Content-Type, Authorization') // we could also use '*' here if we want to allow all the headers
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200)
+  }
   next()
 })
 
-app.use((error, req, res, next) => {
-  console.log(error)
-  const status = error.statusCode || 500
-  const message = error.message
-  const { data } = error
-  res.status(status).json({
-    message,
-    data
-  })
-})
+// app.use((error, req, res, next) => {
+//   console.log(error)
+//   const status = error.statusCode || 500
+//   const message = error.message
+//   const { data } = error
+//   res.status(status).json({
+//     message,
+//     data
+//   })
+// })
+
+app.use(auth)
 
 app.use('/graphql', graphqlHTTP({
   schema: graphqlSchema,
