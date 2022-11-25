@@ -107,6 +107,6 @@ mongoose.connect('mongodb://127.0.0.1:27017/messages')
   .catch(err => console.log(err))
 
 const clearImage = filePath => {
-  filePath = path.join(__dirname, '..', filePath.replace('\\', '/'))
+  filePath = path.join(__dirname, '.', filePath.replace('\\', '/'))
   fs.unlink(filePath, err => console.log(err))
 }
