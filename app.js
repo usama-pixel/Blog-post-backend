@@ -4,10 +4,9 @@ const express = require('express')
 const bodyParser = require('body-parser')
 const mongoose = require('mongoose')
 const multer = require('multer')
-
-
-const feedRoutes = require('./routes/feed')
-const authRoutes = require('./routes/auth')
+const { graphqlHTTP } = require('express-graphql')
+const graphqlSchema = require('./graphql/schema')
+const graphqlResolver = require('./graphql/resolvers')
 
 const app = express()
 
@@ -52,9 +51,6 @@ app.use((req, res, next) => { // using this code to avoid CORS error
   next()
 })
 
-app.use('/feed', feedRoutes)
-app.use('/auth', authRoutes)
-
 app.use((error, req, res, next) => {
   console.log(error)
   const status = error.statusCode || 500
@@ -66,17 +62,24 @@ app.use((error, req, res, next) => {
   })
 })
 
+app.use('/graphql', graphqlHTTP({
+  schema: graphqlSchema,
+  rootValue: graphqlResolver,
+  graphiql: true, // this allows us to use get request from browser and allows us to play withour graphql api there
+  formatError(err) {
+    if (!err.originalError) {
+      return err
+    }
+    const data = err.originalError.data
+    const message = err.message || 'An error occured'
+    const code = err.originalError.code || 500
+    return { message, status: code, data }
+  }
+}))
+
 mongoose.connect('mongodb://127.0.0.1:27017/messages')
   .then(result => {
-    const server = app.listen(8080, () => console.log('listening on port 8080'))
-    const io = require('./socket').init(server, {
-      cors: {
-        origin: 'http://localhost:3000',
-        methods: ['GET', 'POST']
-      }
-    })
-    io.on('connection', socket => {
-      console.log('client connected')
-    })
+    app.listen(8080, () => console.log('listening on port 8080'))
+
   })
   .catch(err => console.log(err))
