@@ -1,15 +1,21 @@
 const path = require('path')
+const fs = require('fs')
 
 const express = require('express')
 const bodyParser = require('body-parser')
 const mongoose = require('mongoose')
 const multer = require('multer')
+const { graphqlHTTP } = require('express-graphql')
 
-
-const feedRoutes = require('./routes/feed')
-const authRoutes = require('./routes/auth')
+const graphqlSchema = require('./graphql/schema')
+const graphqlResolver = require('./graphql/resolvers')
+const auth = require('./middleware/auth')
+const { clearImage } = require('./util/file')
 
 const app = express()
+
+const MONGODB_URI = process.env.MONGODB_URI
+const PORT = process.env.PORT || 8080
 
 const fileStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -49,34 +55,58 @@ app.use((req, res, next) => { // using this code to avoid CORS error
     'PUT, GET, POST, PATCH, DELETE, OPTIONS'
   )
   res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Auth-Token, Content-Type, Authorization') // we could also use '*' here if we want to allow all the headers
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200)
+  }
   next()
 })
 
-app.use('/feed', feedRoutes)
-app.use('/auth', authRoutes)
+// app.use((error, req, res, next) => {
+//   console.log(error)
+//   const status = error.statusCode || 500
+//   const message = error.message
+//   const { data } = error
+//   res.status(status).json({
+//     message,
+//     data
+//   })
+// })
 
-app.use((error, req, res, next) => {
-  console.log(error)
-  const status = error.statusCode || 500
-  const message = error.message
-  const { data } = error
-  res.status(status).json({
-    message,
-    data
-  })
+app.use(auth)
+
+app.put('/post-image', (req, res, next) => {
+  if (!req.isAuth) {
+    throw new Error('Not Authenticated!')
+  }
+  if (!req.file) {
+    return res.status(200).json({ message: 'No file provided!' })
+  }
+  if (req.body.oldPath) {
+    clearImage(req.body.oldPath)
+  }
+  return res.status(201).json({ message: 'File stored', filePath: req.file.path.replace('\\', '/') })
 })
 
-mongoose.connect('mongodb://127.0.0.1:27017/messages')
+
+
+app.use('/graphql', graphqlHTTP({
+  schema: graphqlSchema,
+  rootValue: graphqlResolver,
+  graphiql: true, // this allows us to use get request from browser and allows us to play withour graphql api there
+  formatError(err) {
+    if (!err.originalError) {
+      return err
+    }
+    const data = err.originalError.data
+    const message = err.message || 'An error occured'
+    const code = err.originalError.code || 500
+    return { message, status: code, data }
+  }
+}))
+
+mongoose.connect(MONGODB_URI || 'mongodb://127.0.0.1:27017/messages')
   .then(result => {
-    const server = app.listen(8080, () => console.log('listening on port 8080'))
-    const io = require('./socket').init(server, {
-      cors: {
-        origin: 'http://localhost:3000',
-        methods: ['GET', 'POST']
-      }
-    })
-    io.on('connection', socket => {
-      console.log('client connected')
-    })
+    app.listen(PORT, () => console.log('listening on port 8080'))
+
   })
   .catch(err => console.log(err))
