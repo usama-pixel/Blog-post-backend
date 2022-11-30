@@ -194,9 +194,7 @@ module.exports = {
     }
     post.title = postInput.title
     post.content = postInput.content
-    console.log('outside')
     if (postInput.imageUrl !== 'undefined') {
-      console.log('postInput.imageUrl', postInput.imageUrl)
       post.imageUrl = postInput.imageUrl
     }
     const updatedPost = await post.save()

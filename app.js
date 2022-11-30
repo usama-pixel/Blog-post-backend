@@ -14,6 +14,9 @@ const { clearImage } = require('./util/file')
 
 const app = express()
 
+const MONGODB_URI = process.env.MONGODB_URI
+const PORT = process.env.PORT || 8080
+
 const fileStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'images')
@@ -101,14 +104,9 @@ app.use('/graphql', graphqlHTTP({
   }
 }))
 
-mongoose.connect('mongodb://127.0.0.1:27017/messages')
+mongoose.connect(MONGODB_URI || 'mongodb://127.0.0.1:27017/messages')
   .then(result => {
-    app.listen(8080, () => console.log('listening on port 8080'))
+    app.listen(PORT, () => console.log('listening on port 8080'))
 
   })
   .catch(err => console.log(err))
-
-// const clearImage = filePath => {
-//   filePath = path.join(__dirname, '.', filePath.replace('\\', '/'))
-//   fs.unlink(filePath, err => console.log(err))
-// }
